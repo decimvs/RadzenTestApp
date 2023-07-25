@@ -1,0 +1,73 @@
+﻿@page "/"
+@inject IJSRuntime JSRuntime
+@using System.Text.Json;
+
+<PageTitle>Index</PageTitle>
+
+<RadzenDataGrid TItem="Product" Data="@_products" ShowPagingSummary="true" PageSize="20" AllowMultiColumnSorting="false" ShowMultiColumnSortingIndex="false"
+        AllowColumnReorder="true" AllowColumnResize="true" AllowFiltering="true" AllowCompositeDataCells="true" @bind-Settings=@Settings> 
+    <Columns>
+        <RadzenDataGridColumn TItem="Product" Title="#" Property="Id" />
+        <RadzenDataGridColumn TItem="Product" Title="Designation" Property="Designation" />
+        <RadzenDataGridColumn TItem="Product" Title="Creation date" Property="CreationDate" FormatString="{0:d}"
+            FilterOperator="FilterOperator.GreaterThanOrEquals" FilterValue="@(new DateTime(DateTime.Now.Year, 1, 1, 0, 0, 0))"
+            SecondFilterOperator="FilterOperator.LessThanOrEquals" SecondFilterValue="@(new DateTime(DateTime.Now.Year, 12, 31, 23, 59, 59, 59))"/>
+        <RadzenDataGridColumn TItem="Product" Title="Status" Property="Status" />
+        <RadzenDataGridColumn TItem="Product" Title="Inventory" Property="Inventory" />
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    private List<Product> _products;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        _products = Products.ProductList;
+    }
+
+    DataGridSettings _settings;
+    public DataGridSettings Settings
+    {
+        get
+        {
+            return _settings;
+        }
+        set
+        {
+            if (_settings != value)
+            {
+                _settings = value;
+                InvokeAsync(SaveStateAsync);
+            }
+        }
+    }
+
+    private async Task LoadStateAsync()
+    {
+        await Task.CompletedTask;
+
+        var result = await JSRuntime.InvokeAsync<string>("window.localStorage.getItem", "Settings");
+        if (!string.IsNullOrEmpty(result))
+        {
+            _settings = JsonSerializer.Deserialize<DataGridSettings>(result);
+        }
+    }
+
+    private async Task SaveStateAsync()
+    {
+        await Task.CompletedTask;
+
+        await JSRuntime.InvokeVoidAsync("eval", $@"window.localStorage.setItem('Settings', '{JsonSerializer.Serialize<DataGridSettings>(Settings)}')");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadStateAsync();
+            StateHasChanged();
+        }
+    }
+}
